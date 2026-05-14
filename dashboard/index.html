@@ -114,6 +114,24 @@ main{padding:1.2rem 1.5rem;max-width:1280px;margin:0 auto}
 .save-btn{background:var(--gold);color:var(--dark);border:none;padding:.35rem .8rem;border-radius:4px;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit}
 .save-btn:hover{opacity:.85}
 
+/* BOOKING LOG */
+.booking-form{display:grid;grid-template-columns:1fr 1fr 120px 120px auto;gap:.5rem;align-items:end;margin-bottom:.8rem}
+.bf-group label{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:.3rem}
+.bf-input{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:.4rem .6rem;border-radius:4px;font-size:.8rem;font-family:inherit;width:100%}
+.bf-input:focus{outline:none;border-color:rgba(201,169,110,.4)}
+.add-btn{background:var(--gold);color:var(--dark);border:none;padding:.4rem .9rem;border-radius:4px;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;font-family:inherit;white-space:nowrap;height:32px}
+.add-btn:hover{opacity:.85}
+.booking-table{width:100%;border-collapse:collapse;font-size:.78rem}
+.booking-table th{font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--border)}
+.booking-table td{padding:.42rem .5rem;border-bottom:1px solid rgba(255,255,255,.04);color:var(--text);vertical-align:top}
+.booking-table td.amt{color:var(--gold);font-weight:600}
+.booking-table td.del{text-align:center;cursor:pointer;color:var(--muted);font-size:.9rem}
+.booking-table td.del:hover{color:var(--red)}
+.booking-table tr:last-child td{border-bottom:none}
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:.6rem .5rem 0;border-top:1px solid var(--border);font-size:.82rem;margin-top:.4rem}
+.total-row .total-lbl{color:var(--muted)}
+.total-row .total-val{color:var(--gold);font-weight:600;font-size:1rem}
+
 /* FOOTER */
 .footer-bar{padding:.8rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-top:1.5rem}
 .footer-bar a{color:var(--muted)}
@@ -193,6 +211,55 @@ main{padding:1.2rem 1.5rem;max-width:1280px;margin:0 auto}
   <div class="card" style="margin-bottom:.7rem">
     <p class="card-title">Zapytania B2B (piumosso.com.pl + piumosso.net) — ostatnie 10</p>
     <div id="corpList"></div>
+  </div>
+
+  <!-- Booking log -->
+  <div class="card" style="margin-bottom:.7rem">
+    <p class="card-title">Log bookingów · rzeczywiste zlecenia</p>
+    <div class="booking-form">
+      <div class="bf-group">
+        <label>Data</label>
+        <input class="bf-input" type="date" id="bf-date">
+      </div>
+      <div class="bf-group">
+        <label>Klient / nazwa</label>
+        <input class="bf-input" type="text" id="bf-name" placeholder="Dom Kultury, Hotel…">
+      </div>
+      <div class="bf-group">
+        <label>Kwota (PLN)</label>
+        <input class="bf-input" type="number" id="bf-amount" placeholder="3000" min="0">
+      </div>
+      <div class="bf-group">
+        <label>Kategoria</label>
+        <select class="bf-input" id="bf-cat">
+          <option value="instytucja">instytucja</option>
+          <option value="korporacja">korporacja</option>
+          <option value="slub">ślub</option>
+          <option value="rezydencja">rezydencja</option>
+          <option value="inne">inne</option>
+        </select>
+      </div>
+      <div class="bf-group">
+        <label>&nbsp;</label>
+        <button class="add-btn" onclick="addBooking()">+ Dodaj</button>
+      </div>
+    </div>
+    <table class="booking-table" id="bookingTable">
+      <thead>
+        <tr>
+          <th>Data</th><th>Klient</th><th>Kategoria</th>
+          <th style="text-align:right">Kwota PLN</th><th style="text-align:right">USD</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="bookingBody"></tbody>
+    </table>
+    <div class="total-row">
+      <span class="total-lbl">Łączny przychód (potwierdzone zlecenia)</span>
+      <span class="total-val" id="bookingTotal">0 PLN</span>
+    </div>
+    <div style="margin-top:.4rem;font-size:.68rem;color:var(--muted)">
+      Dane zapisywane lokalnie w przeglądarce. Wpisuj każde zlecenie po potwierdzeniu i opłaceniu.
+    </div>
   </div>
 
   <!-- Settings -->
@@ -503,8 +570,96 @@ function domainRow(name, count, max, color) {
     '<span class="domain-num">' + count + '</span></div>';
 }
 
+// ── Booking log (localStorage) ────────────────────────────────────────────────
+var BOOKINGS_KEY = 'pmBookings';
+
+function loadBookings() {
+  return JSON.parse(localStorage.getItem(BOOKINGS_KEY) || '[]');
+}
+function saveBookings(arr) {
+  localStorage.setItem(BOOKINGS_KEY, JSON.stringify(arr));
+}
+
+function addBooking() {
+  var date   = document.getElementById('bf-date').value;
+  var name   = document.getElementById('bf-name').value.trim();
+  var amount = +document.getElementById('bf-amount').value;
+  var cat    = document.getElementById('bf-cat').value;
+  if (!name || !amount) { alert('Podaj klienta i kwotę.'); return; }
+  var arr = loadBookings();
+  arr.push({ id: Date.now(), date: date || new Date().toISOString().slice(0,10), name: name, amount: amount, cat: cat });
+  saveBookings(arr);
+  document.getElementById('bf-name').value = '';
+  document.getElementById('bf-amount').value = '';
+  renderBookings();
+  if (window._lastData) render(window._lastData);
+}
+
+function deleteBooking(id) {
+  if (!confirm('Usunąć to zlecenie?')) return;
+  saveBookings(loadBookings().filter(function(b){ return b.id !== id; }));
+  renderBookings();
+  if (window._lastData) render(window._lastData);
+}
+
+function renderBookings() {
+  var arr   = loadBookings().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+  var total = arr.reduce(function(s,b){ return s + b.amount; }, 0);
+  var rate  = CFG.rate;
+
+  document.getElementById('bookingBody').innerHTML = arr.length
+    ? arr.map(function(b){
+        return '<tr>' +
+          '<td>' + (b.date||'—') + '</td>' +
+          '<td>' + b.name + '</td>' +
+          '<td style="color:var(--muted)">' + b.cat + '</td>' +
+          '<td class="amt" style="text-align:right">' + b.amount.toLocaleString('pl-PL') + ' PLN</td>' +
+          '<td style="text-align:right;color:var(--muted);font-size:.72rem">' + fmtUSD(b.amount/rate) + '</td>' +
+          '<td class="del" onclick="deleteBooking(' + b.id + ')">✕</td>' +
+          '</tr>';
+      }).join('')
+    : '<tr><td colspan="6" style="color:var(--muted);padding:.6rem .5rem">Brak wpisów. Dodaj pierwsze zlecenie po potwierdzeniu.</td></tr>';
+
+  document.getElementById('bookingTotal').textContent =
+    total.toLocaleString('pl-PL') + ' PLN  ·  ' + fmtUSD(total/rate);
+}
+
+function getRealRevenuePLN() {
+  return loadBookings().reduce(function(s,b){ return s + b.amount; }, 0);
+}
+
+// ── Override goal cards to use real revenue ───────────────────────────────────
+var _origRender = render;
+render = function(data) {
+  _origRender(data);
+  // Patch goal cards with real revenue
+  var real = getRealRevenuePLN();
+  if (real > 0) {
+    var goalY1  = CFG.goalY1;
+    var goalUSD = CFG.goalUsd;
+    var rate    = CFG.rate;
+    var pctY1   = Math.min(100, Math.round(real / goalY1 * 100));
+    var pctUSD  = Math.min(100, +(real / rate / goalUSD * 100).toFixed(2));
+    document.getElementById('goalCards').innerHTML =
+      goalCard('Cel Rok 1 · RZECZYWISTY', fmtPLN(goalY1), fmtPLN(real),
+               fmtPLN(Math.max(0, goalY1 - real)) + ' pozostało', pctY1, '#c9a96e') +
+      goalCard('Cel $1M USD · RZECZYWISTY', fmtUSD(goalUSD), fmtUSD(real/rate),
+               fmtUSD(Math.max(0, goalUSD - real/rate)) + ' pozostało', pctUSD, '#5a9a72');
+    // Update first KPI card
+    var kpiCards = document.querySelectorAll('.kpi');
+    if (kpiCards[0]) {
+      kpiCards[0].querySelector('.num').textContent = fmtPLN(real);
+      kpiCards[0].querySelector('.lbl').textContent = 'Rzeczywisty przychód';
+      kpiCards[0].querySelector('.sub').textContent = loadBookings().length + ' potwierdzonych zleceń';
+    }
+  }
+};
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 loadSettings();
+renderBookings();
+// Set today's date as default in booking form
+document.getElementById('bf-date').value = new Date().toISOString().slice(0,10);
 fetchData();
 setInterval(fetchData, 5 * 60 * 1000); // refresh co 5 min
 </script>
